@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+
+<div id="app"></div>
+
+</body>
+<script>
+  let activeWatcher = null;
+
+  function reactive(target) {
+    const depsMap = new Map();
+
+    return new Proxy(target, {
+      get(obj, prop) {
+        if (activeWatcher) {
+          if (!depsMap.has(prop)) depsMap.set(prop, new Set());
+          depsMap.get(prop).add(activeWatcher);
+        }
+        return obj[prop];
+      },
+      set(obj, prop, value) {
+        obj[prop] = value;
+        if (depsMap.has(prop)) {
+          for (const watcher of depsMap.get(prop)) {
+            watcher();
+          }
+        }
+        return true;
+      }
+    });
+  }
+
+  function watchEffect(effect) {
+    activeWatcher = effect;
+    effect();
+    activeWatcher = null;
+  }
+
+  function render(template, data) {
+    document.getElementById('app').innerHTML = template(data);
+  }
+
+  function createReactiveApp(data, template) {
+    const reactiveData = reactive(data);
+    watchEffect(() => render(template, reactiveData));
+    return reactiveData;
+  }
+
+  // Usage
+  const data = createReactiveApp({ count: 0 }, data => `
+    <div>
+        <h1>Count: ${data.count}</h1>
+        <button onclick="data.count++">Add</button>
+    </div>`);
+</script>
+</html>
